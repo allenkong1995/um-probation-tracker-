@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UM Probation Tracker 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --red: #E24B4A; --red-bg: #FCEBEB; --red-dark: #A32D2D;
+    --amber: #EF9F27; --amber-bg: #FAEEDA; --amber-dark: #854F0B;
+    --green: #639922; --green-bg: #EAF3DE; --green-dark: #3B6D11;
+    --bg: #F7F6F2; --card: #FFFFFF;
+    --text: #1a1a18; --text2: #5F5E5A; --text3: #888780;
+    --border: rgba(0,0,0,0.10);
+    --radius: 12px; --radius-sm: 8px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* TOP BAR */
+  .top-bar { background: #1a1a18; color: #fff; padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .top-bar-left { display: flex; align-items: center; gap: 14px; }
+  .top-logo { width: 8px; height: 8px; background: var(--amber); border-radius: 50%; }
+  .top-title { font-size: 14px; font-weight: 500; letter-spacing: 0.02em; }
+  .top-date { font-size: 12px; color: #888; font-family: 'DM Mono', monospace; }
+  .deadline-pill { background: rgba(239,159,39,0.15); color: var(--amber); font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px; font-family: 'DM Mono', monospace; }
+
+  /* SYNC STATUS */
+  .sync-bar { background: #111; color: #888; font-size: 12px; font-family: 'DM Mono', monospace; padding: 6px 28px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #444; display: inline-block; margin-right: 6px; transition: background 0.3s; }
+  .sync-dot.ok { background: #639922; }
+  .sync-dot.saving { background: var(--amber); animation: pulse 0.8s infinite; }
+  .sync-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .sync-btn { background: transparent; border: 1px solid #333; color: #888; font-size: 11px; font-family: 'DM Mono', monospace; padding: 3px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+  .sync-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+  .container { max-width: 820px; margin: 0 auto; padding: 32px 20px 60px; }
+  .page-header { margin-bottom: 28px; }
+  .page-header h1 { font-size: 26px; font-weight: 600; margin-bottom: 4px; }
+  .page-header p { font-size: 14px; color: var(--text2); }
+
+  /* COUNTDOWN BANNER */
+  .days-banner { background: #1a1a18; color: #fff; border-radius: var(--radius); padding: 22px 24px 20px; margin-bottom: 24px; }
+  .days-banner-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .days-banner-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #666; margin-bottom: 6px; }
+  .countdown-grid { display: flex; gap: 10px; align-items: flex-end; }
+  .cd-unit { text-align: center; }
+  .cd-num { font-size: 38px; font-weight: 600; font-family: 'DM Mono', monospace; color: var(--amber); line-height: 1; min-width: 52px; display: block; }
+  .cd-lbl { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+  .cd-sep { font-size: 30px; font-family: 'DM Mono', monospace; color: #444; line-height: 1; padding-bottom: 8px; }
+  .days-right { text-align: right; }
+  .overall-badge { font-size: 13px; font-weight: 500; padding: 6px 16px; border-radius: 20px; }
+  .overall-atrisk { background: rgba(226,75,74,0.2); color: #ff7a79; }
+  .overall-ok { background: rgba(99,153,34,0.2); color: #8acc44; }
+  .deadline-row { border-top: 1px solid #2a2a28; padding-top: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .deadline-info { font-size: 12px; color: #666; }
+  .deadline-info span { color: var(--amber); font-weight: 500; }
+  .urgency-bar-wrap { flex: 1; max-width: 240px; }
+  .urgency-bar-bg { background: #2a2a28; border-radius: 4px; height: 4px; overflow: hidden; }
+  .urgency-bar-fill { height: 100%; border-radius: 4px; background: var(--amber); transition: width 1s linear; }
+
+  /* SUMMARY CARDS */
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px 18px; }
+  .card-label { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+  .card-value { font-size: 24px; font-weight: 600; line-height: 1; }
+  .card-sub { font-size: 12px; color: var(--text3); margin-top: 6px; }
+  .cv-red { color: var(--red); } .cv-green { color: var(--green); } .cv-amber { color: var(--amber); }
+
+  .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 12px; }
+
+  /* CRITERIA */
+  .criteria-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .crit { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; transition: box-shadow 0.2s; }
+  .crit:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .crit-name { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .crit-desc { font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.5; }
+  .crit-input-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .input-group { display: flex; flex-direction: column; gap: 4px; }
+  .input-group label { font-size: 11px; color: var(--text3); font-weight: 500; }
+  .crit-input { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 12px; background: var(--bg); color: var(--text); width: 160px; transition: border-color 0.15s; outline: none; }
+  .crit-input:focus { border-color: var(--amber); background: #fff; }
+  .crit-input.wide { width: 200px; } .crit-input.small { width: 100px; }
+  select.crit-input { cursor: pointer; }
+  .crit-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .status-badge { font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 20px; white-space: nowrap; }
+  .sb-red { background: var(--red-bg); color: var(--red-dark); }
+  .sb-green { background: var(--green-bg); color: var(--green-dark); }
+  .sb-amber { background: var(--amber-bg); color: var(--amber-dark); }
+  .prog-wrap { margin-top: 8px; }
+  .prog-bg { background: #EDEDEA; border-radius: 4px; height: 5px; overflow: hidden; width: 100%; }
+  .prog-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+  .pf-red { background: var(--red); } .pf-amber { background: var(--amber); } .pf-green { background: var(--green); }
+  .prog-pct { font-size: 11px; color: var(--text3); margin-top: 4px; font-family: 'DM Mono', monospace; }
+  .crit.status-met { border-top: 3px solid var(--green); }
+  .crit.status-critical { border-top: 3px solid var(--red); }
+  .crit.status-progress { border-top: 3px solid var(--amber); }
+
+  /* SAVE BUTTON */
+  .save-btn { display: block; width: 100%; padding: 14px; background: #1a1a18; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; border: none; border-radius: var(--radius); cursor: pointer; transition: opacity 0.15s, transform 0.1s; margin-top: 8px; letter-spacing: 0.01em; }
+  .save-btn:hover { opacity: 0.85; }
+  .save-btn:active { transform: scale(0.99); }
+  .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .save-confirm { text-align: center; font-size: 13px; color: var(--green); margin-top: 8px; opacity: 0; transition: opacity 0.3s; height: 20px; }
+  .save-confirm.show { opacity: 1; }
+  .last-updated { font-size: 12px; color: var(--text3); text-align: center; margin-top: 12px; font-family: 'DM Mono', monospace; }
+
+  /* LOADING OVERLAY */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(247,246,242,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 14px; }
+  .loading-spinner { width: 36px; height: 36px; border: 3px solid #ddd; border-top-color: var(--amber); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 14px; color: var(--text2); font-family: 'DM Mono', monospace; }
+
+  @media (max-width: 540px) {
+    .container { padding: 20px 14px 50px; }
+    .top-bar { padding: 14px 16px; }
+    .days-banner-top { flex-direction: column; }
+    .days-right { text-align: left; }
+    .crit { grid-template-columns: 1fr; }
+    .crit-right { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+    .crit-input { width: 140px; }
+    .countdown-grid { gap: 6px; }
+    .cd-num { font-size: 28px; min-width: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading latest data…</div>
+</div>
+
+<div class="top-bar">
+  <div class="top-bar-left">
+    <div class="top-logo"></div>
+    <span class="top-title">AIA · UM Probation Tracker</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span class="top-date" id="today-date"></span>
+    <span class="deadline-pill">Deadline: 30 Jun 2026</span>
+  </div>
+</div>
+
+<div class="sync-bar">
+  <div>
+    <span class="sync-dot" id="sync-dot"></span>
+    <span id="sync-status">Connecting…</span>
+  </div>
+  <button class="sync-btn" onclick="loadData()">⟳ Refresh</button>
+</div>
+
+<div class="container">
+
+  <div class="page-header">
+    <h1>My Probation Dashboard</h1>
+    <p>Jan 2026 – 30 Jun 2026 &nbsp;·&nbsp; New UM Probation Requirements (By Direct)</p>
+  </div>
+
+  <div class="days-banner">
+    <div class="days-banner-top">
+      <div>
+        <div class="days-banner-label" id="cd-banner-label">Time remaining until deadline</div>
+        <div class="countdown-grid">
+          <div class="cd-unit"><span class="cd-num" id="cd-days">—</span><div class="cd-lbl">Days</div></div>
+          <div class="cd-sep">:</div>
+          <div class="cd-unit"><span class="cd-num" id="cd-hours">—</span><div class="cd-lbl">Hours</div></div>
+          <div class="cd-sep">:</div>
+          <div class="cd-unit"><span class="cd-num" id="cd-mins">—</span><div class="cd-lbl">Mins</div></div>
+          <div class="cd-sep">:</div>
+          <div class="cd-unit"><span class="cd-num" id="cd-secs">—</span><div class="cd-lbl">Secs</div></div>
+        </div>
+      </div>
+      <div class="days-right">
+        <div style="font-size:13px;color:#aaa;margin-bottom:6px;">Overall status</div>
+        <div class="overall-badge" id="overall-badge">Calculating…</div>
+      </div>
+    </div>
+    <div class="deadline-row">
+      <div class="deadline-info">Deadline: <span>30 June 2026, 11:59 PM</span></div>
+      <div class="urgency-bar-wrap">
+        <div class="urgency-bar-bg"><div class="urgency-bar-fill" id="urgency-fill" style="width:0%"></div></div>
+      </div>
+      <div class="deadline-info" id="days-left-text" style="color:#888;">— days left</div>
+    </div>
+  </div>
+
+  <div class="cards-grid">
+    <div class="card">
+      <div class="card-label">Team TPC</div>
+      <div class="card-value cv-red" id="sum-tpc">RM0</div>
+      <div class="card-sub">Target: RM150,000</div>
+    </div>
+    <div class="card">
+      <div class="card-label">TPC Gap</div>
+      <div class="card-value" id="sum-gap">RM150,000</div>
+      <div class="card-sub">Remaining to hit</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Criteria Met</div>
+      <div class="card-value" id="sum-met">0 / 6</div>
+      <div class="card-sub">Qualifying requirements</div>
+    </div>
+    <div class="card">
+      <div class="card-label">MOC Manpower</div>
+      <div class="card-value" id="sum-moc">0</div>
+      <div class="card-sub">Need 3 (full) or 6 (pro-rate)</div>
+    </div>
+  </div>
+
+  <div class="section-label">Update numbers — changes save for everyone instantly</div>
+  <div class="criteria-list">
+
+    <div class="crit status-critical" id="crit-tpc">
+      <div class="crit-left">
+        <div class="crit-name">1 · Team TPC (Total Production Credit)</div>
+        <div class="crit-desc">Required: RM150,000 by direct before 30 Jun 2026</div>
+        <div class="crit-input-row">
+          <div class="input-group">
+            <label>Current team TPC (RM)</label>
+            <input class="crit-input" type="number" id="val-tpc" placeholder="e.g. 22298" min="0">
+          </div>
+        </div>
+        <div class="prog-wrap">
+          <div class="prog-bg"><div class="prog-fill pf-red" id="bar-tpc" style="width:0%"></div></div>
+          <div class="prog-pct" id="pct-tpc">0% of RM150,000</div>
+        </div>
+      </div>
+      <div class="crit-right"><span class="status-badge sb-red" id="badge-tpc">Not met</span></div>
+    </div>
+
+    <div class="crit status-critical" id="crit-psp">
+      <div class="crit-left">
+        <div class="crit-name">2 · TPC — Personal Sales Production</div>
+        <div class="crit-desc">Required: RM30,000 personal production</div>
+        <div class="crit-input-row">
+          <div class="input-group">
+            <label>Current personal TPC (RM)</label>
+            <input class="crit-input" type="number" id="val-psp" placeholder="e.g. 5000" min="0">
+          </div>
+        </div>
+        <div class="prog-wrap">
+          <div class="prog-bg"><div class="prog-fill pf-red" id="bar-psp" style="width:0%"></div></div>
+          <div class="prog-pct" id="pct-psp">0% of RM30,000</div>
+        </div>
+      </div>
+      <div class="crit-right"><span class="status-badge sb-red" id="badge-psp">Not met</span></div>
+    </div>
+
+    <div class="crit status-critical" id="crit-moc">
+      <div class="crit-left">
+        <div class="crit-name">3 · Manpower Meeting MOC</div>
+        <div class="crit-desc">
+          Option A: 3 manpower full MOC (TPC ≥RM30k &amp; D1 PR ≥85%)<br>
+          Option B: 6 manpower pro-rate MOC (TPC ≥RM15k &amp; D1 PR ≥85%)
+        </div>
+        <div class="crit-input-row">
+          <div class="input-group">
+            <label>Full MOC manpower (Option A)</label>
+            <input class="crit-input small" type="number" id="val-moc-full" placeholder="0" min="0" max="20">
+          </div>
+          <div class="input-group">
+            <label>Pro-rate MOC manpower (Option B)</label>
+            <input class="crit-input small" type="number" id="val-moc-pro" placeholder="0" min="0" max="20">
+          </div>
+        </div>
+        <div class="prog-wrap">
+          <div class="prog-bg"><div class="prog-fill pf-red" id="bar-moc" style="width:0%"></div></div>
+          <div class="prog-pct" id="pct-moc">0 qualified (need 3 full or 6 pro-rate)</div>
+        </div>
+      </div>
+      <div class="crit-right"><span class="status-badge sb-red" id="badge-moc">Not met</span></div>
+    </div>
+
+    <div class="crit status-critical" id="crit-d1">
+      <div class="crit-left">
+        <div class="crit-name">4 · D1 Persistency Rate (D1 PR)</div>
+        <div class="crit-desc">Required: By Direct ≥ 85%</div>
+        <div class="crit-input-row">
+          <div class="input-group">
+            <label>Current D1 PR (%)</label>
+            <input class="crit-input small" type="number" id="val-d1" placeholder="e.g. 80" min="0" max="100" step="0.1">
+          </div>
+        </div>
+        <div class="prog-wrap">
+          <div class="prog-bg"><div class="prog-fill pf-red" id="bar-d1" style="width:0%"></div></div>
+          <div class="prog-pct" id="pct-d1">0% (need ≥85%)</div>
+        </div>
+      </div>
+      <div class="crit-right"><span class="status-badge sb-red" id="badge-d1">Not met</span></div>
+    </div>
+
+    <div class="crit status-met" id="crit-aum">
+      <div class="crit-left">
+        <div class="crit-name">5 · One Level Downline AUM</div>
+        <div class="crit-desc">Required: At least 1 AUM in your direct downline</div>
+        <div class="crit-input-row">
+          <div class="input-group">
+            <label>Number of AUM in downline</label>
+            <input class="crit-input small" type="number" id="val-aum" placeholder="1" min="0" max="20">
+          </div>
+        </div>
+      </div>
+      <div class="crit-right"><span class="status-badge sb-green" id="badge-aum">Met ✓</span></div>
+    </div>
+
+    <div class="crit status-critical" id="crit-training">
+      <div class="crit-left">
+        <div class="crit-name">6 · New UM Training Requirement</div>
+        <div class="crit-desc">Must complete the New UM Training before 30 Jun 2026</div>
+        <div class="crit-input-row">
+          <div class="input-group">
+            <label>Training status</label>
+            <select class="crit-input wide" id="val-training">
+              <option value="not_started">Not started</option>
+              <option value="in_progress">In progress</option>
+              <option value="completed">Completed ✓</option>
+            </select>
+          </div>
+          <div class="input-group" id="training-date-group" style="display:none;">
+            <label>Completion date</label>
+            <input class="crit-input" type="date" id="val-training-date">
+          </div>
+        </div>
+      </div>
+      <div class="crit-right"><span class="status-badge sb-red" id="badge-training">Not met</span></div>
+    </div>
+
+  </div>
+
+  <button class="save-btn" id="save-btn" onclick="saveData()">☁️ &nbsp;Save &amp; Sync to Cloud</button>
+  <div class="save-confirm" id="save-confirm">✓ Saved and synced for everyone</div>
+  <div class="last-updated" id="last-updated"></div>
+
+</div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbxg2eLapq-gzq8bs7wekvTWRRXcxtQqLLtUAAyxI56d6K7K_4MW1o-bT5_U3Y7LG_uTyw/exec';
+const DEADLINE = new Date('2026-06-30T23:59:59');
+
+function pad(n) { return String(Math.max(0, n)).padStart(2, '0'); }
+function fmt(n) { return 'RM' + Math.round(n).toLocaleString('en-MY'); }
+function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+function pct(val, target) { return clamp(Math.round((val / target) * 100), 0, 100); }
+
+function setSyncStatus(state, msg) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-status');
+  dot.className = 'sync-dot ' + state;
+  txt.textContent = msg;
+}
+
+function updateCountdown() {
+  const now = new Date();
+  const diff = DEADLINE - now;
+  if (diff <= 0) {
+    const os = Math.floor(Math.abs(diff) / 1000);
+    const od = Math.floor(os / 86400);
+    const oh = Math.floor((os % 86400) / 3600);
+    const om = Math.floor((os % 3600) / 60);
+    const osc = os % 60;
+    ['cd-days','cd-hours','cd-mins','cd-secs'].forEach(id => document.getElementById(id).style.color = '#ff7a79');
+    document.getElementById('cd-days').textContent = pad(od);
+    document.getElementById('cd-hours').textContent = pad(oh);
+    document.getElementById('cd-mins').textContent = pad(om);
+    document.getElementById('cd-secs').textContent = pad(osc);
+    document.getElementById('cd-banner-label').textContent = 'Deadline passed — days overdue';
+    document.getElementById('cd-banner-label').style.color = '#ff7a79';
+    document.getElementById('days-left-text').textContent = od + ' days overdue';
+    document.getElementById('days-left-text').style.color = '#ff7a79';
+    document.getElementById('urgency-fill').style.width = '100%';
+    document.getElementById('urgency-fill').style.background = '#E24B4A';
+    return;
+  }
+  const ts = Math.floor(diff / 1000);
+  const days = Math.floor(ts / 86400);
+  const hours = Math.floor((ts % 86400) / 3600);
+  const mins = Math.floor((ts % 3600) / 60);
+  const secs = ts % 60;
+  document.getElementById('cd-days').textContent = pad(days);
+  document.getElementById('cd-hours').textContent = pad(hours);
+  document.getElementById('cd-mins').textContent = pad(mins);
+  document.getElementById('cd-secs').textContent = pad(secs);
+  document.getElementById('days-left-text').textContent = days + ' day' + (days !== 1 ? 's' : '') + ' left';
+  const totalDuration = 181 * 86400;
+  const elapsed = totalDuration - (diff / 1000);
+  const pctElapsed = Math.min(100, Math.round((elapsed / totalDuration) * 100));
+  const fill = document.getElementById('urgency-fill');
+  fill.style.width = pctElapsed + '%';
+  fill.style.background = days <= 14 ? '#E24B4A' : days <= 30 ? '#EF9F27' : '#639922';
+}
+
+function setBar(barId, pctId, value, target, unit) {
+  const p = pct(value, target);
+  const bar = document.getElementById(barId);
+  bar.style.width = p + '%';
+  bar.className = 'prog-fill ' + (p >= 100 ? 'pf-green' : p >= 50 ? 'pf-amber' : 'pf-red');
+  document.getElementById(pctId).textContent = p + '% of ' + unit;
+}
+
+function setBadge(id, met, partial) {
+  const el = document.getElementById(id);
+  const crit = document.getElementById(id.replace('badge-', 'crit-'));
+  if (met) {
+    el.textContent = 'Met ✓'; el.className = 'status-badge sb-green';
+    if (crit) crit.className = crit.className.replace(/status-\w+/, 'status-met');
+  } else if (partial) {
+    el.textContent = 'In progress'; el.className = 'status-badge sb-amber';
+    if (crit) crit.className = crit.className.replace(/status-\w+/, 'status-progress');
+  } else {
+    el.textContent = 'Not met'; el.className = 'status-badge sb-red';
+    if (crit) crit.className = crit.className.replace(/status-\w+/, 'status-critical');
+  }
+}
+
+function recalc() {
+  const tpc = parseFloat(document.getElementById('val-tpc').value) || 0;
+  const psp = parseFloat(document.getElementById('val-psp').value) || 0;
+  const mocFull = parseInt(document.getElementById('val-moc-full').value) || 0;
+  const mocPro = parseInt(document.getElementById('val-moc-pro').value) || 0;
+  const d1 = parseFloat(document.getElementById('val-d1').value) || 0;
+  const aum = parseInt(document.getElementById('val-aum').value) || 0;
+  const training = document.getElementById('val-training').value;
+
+  setBar('bar-tpc', 'pct-tpc', tpc, 150000, 'RM150,000');
+  setBadge('badge-tpc', tpc >= 150000, tpc > 0);
+  document.getElementById('sum-tpc').textContent = fmt(tpc);
+  document.getElementById('sum-tpc').className = 'card-value ' + (tpc >= 150000 ? 'cv-green' : tpc > 0 ? 'cv-amber' : 'cv-red');
+  document.getElementById('sum-gap').textContent = fmt(Math.max(0, 150000 - tpc));
+
+  setBar('bar-psp', 'pct-psp', psp, 30000, 'RM30,000');
+  setBadge('badge-psp', psp >= 30000, psp > 0);
+
+  const mocMet = mocFull >= 3 || mocPro >= 6;
+  const mocPartial = mocFull > 0 || mocPro > 0;
+  const mocPct2 = mocFull >= mocPro / 2 ? pct(mocFull, 3) : pct(mocPro, 6);
+  const mocBar = document.getElementById('bar-moc');
+  mocBar.style.width = mocPct2 + '%';
+  mocBar.className = 'prog-fill ' + (mocMet ? 'pf-green' : mocPartial ? 'pf-amber' : 'pf-red');
+  document.getElementById('pct-moc').textContent = mocFull + ' full MOC · ' + mocPro + ' pro-rate (need 3 full or 6 pro-rate)';
+  setBadge('badge-moc', mocMet, mocPartial);
+  document.getElementById('sum-moc').textContent = mocFull + ' full / ' + mocPro + ' pro';
+  document.getElementById('sum-moc').className = 'card-value ' + (mocMet ? 'cv-green' : mocPartial ? 'cv-amber' : 'cv-red');
+
+  const d1Bar = document.getElementById('bar-d1');
+  d1Bar.style.width = clamp(d1, 0, 100) + '%';
+  d1Bar.className = 'prog-fill ' + (d1 >= 85 ? 'pf-green' : d1 >= 70 ? 'pf-amber' : 'pf-red');
+  document.getElementById('pct-d1').textContent = d1.toFixed(1) + '% (need ≥85%)';
+  setBadge('badge-d1', d1 >= 85, d1 > 0);
+
+  setBadge('badge-aum', aum >= 1, false);
+
+  const trainingMet = training === 'completed';
+  const trainingPartial = training === 'in_progress';
+  setBadge('badge-training', trainingMet, trainingPartial);
+  document.getElementById('training-date-group').style.display = trainingMet ? 'flex' : 'none';
+
+  let met = 0;
+  if (tpc >= 150000) met++;
+  if (psp >= 30000) met++;
+  if (mocMet) met++;
+  if (d1 >= 85) met++;
+  if (aum >= 1) met++;
+  if (trainingMet) met++;
+  document.getElementById('sum-met').textContent = met + ' / 6';
+  document.getElementById('sum-met').className = 'card-value ' + (met >= 6 ? 'cv-green' : met >= 3 ? 'cv-amber' : 'cv-red');
+
+  const badge = document.getElementById('overall-badge');
+  if (met >= 6) { badge.textContent = '🎉 All criteria met!'; badge.className = 'overall-badge overall-ok'; }
+  else if (met >= 3) { badge.textContent = '⚡ In progress'; badge.className = 'overall-badge overall-ok'; }
+  else { badge.textContent = '⚠ At risk'; badge.className = 'overall-badge overall-atrisk'; }
+}
+
+function populateFields(d) {
+  if (d.tpc !== undefined) document.getElementById('val-tpc').value = d.tpc;
+  if (d.psp !== undefined) document.getElementById('val-psp').value = d.psp;
+  if (d.mocFull !== undefined) document.getElementById('val-moc-full').value = d.mocFull;
+  if (d.mocPro !== undefined) document.getElementById('val-moc-pro').value = d.mocPro;
+  if (d.d1 !== undefined) document.getElementById('val-d1').value = d.d1;
+  if (d.aum !== undefined) document.getElementById('val-aum').value = d.aum;
+  if (d.training) document.getElementById('val-training').value = d.training;
+  if (d.trainingDate) document.getElementById('val-training-date').value = d.trainingDate;
+  if (d.savedAt) updateLastSaved(d.savedAt);
+  recalc();
+}
+
+function updateLastSaved(iso) {
+  if (!iso) return;
+  try {
+    const d = new Date(iso);
+    document.getElementById('last-updated').textContent = 'Last synced: ' + d.toLocaleString('en-MY', { dateStyle: 'medium', timeStyle: 'short' });
+  } catch(e) {}
+}
+
+function loadData() {
+  setSyncStatus('saving', 'Loading latest data…');
+  // Remove old JSONP script if exists
+  const old = document.getElementById('jsonp-script');
+  if (old) old.remove();
+  // Set timeout in case it fails
+  window._jsonpTimeout = setTimeout(() => {
+    setSyncStatus('error', 'Could not connect — check internet');
+    document.getElementById('loading-overlay').style.display = 'none';
+  }, 8000);
+  // JSONP callback
+  window._onDataLoaded = function(data) {
+    clearTimeout(window._jsonpTimeout);
+    populateFields(data);
+    setSyncStatus('ok', 'Live — data up to date');
+    document.getElementById('loading-overlay').style.display = 'none';
+  };
+  const script = document.createElement('script');
+  script.id = 'jsonp-script';
+  script.src = API + '?callback=_onDataLoaded&t=' + Date.now();
+  document.body.appendChild(script);
+}
+
+async function saveData() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳  Saving…';
+  setSyncStatus('saving', 'Saving to cloud…');
+
+  const data = {
+    tpc: parseFloat(document.getElementById('val-tpc').value) || 0,
+    psp: parseFloat(document.getElementById('val-psp').value) || 0,
+    mocFull: parseInt(document.getElementById('val-moc-full').value) || 0,
+    mocPro: parseInt(document.getElementById('val-moc-pro').value) || 0,
+    d1: parseFloat(document.getElementById('val-d1').value) || 0,
+    aum: parseInt(document.getElementById('val-aum').value) || 0,
+    training: document.getElementById('val-training').value,
+    trainingDate: document.getElementById('val-training-date').value,
+    savedAt: new Date().toISOString()
+  };
+
+  try {
+    await fetch(API, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    updateLastSaved(data.savedAt);
+    setSyncStatus('ok', 'Saved — everyone sees the latest data');
+    const conf = document.getElementById('save-confirm');
+    conf.classList.add('show');
+    setTimeout(() => conf.classList.remove('show'), 3000);
+  } catch (e) {
+    setSyncStatus('error', 'Save failed — check internet connection');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '☁️  Save & Sync to Cloud';
+  recalc();
+}
+
+document.querySelectorAll('.crit-input, select.crit-input').forEach(el => {
+  el.addEventListener('input', recalc);
+  el.addEventListener('change', recalc);
+});
+
+// Set today's date in top bar
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
+// Start countdown ticker
+updateCountdown();
+setInterval(updateCountdown, 1000);
+
+// Auto-refresh data every 60 seconds
+loadData();
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
